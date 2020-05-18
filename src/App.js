@@ -1,17 +1,21 @@
-import {Layer, Stage, Text} from "react-konva";
-import React, {Component} from "react";
+import { Layer, Stage, Text } from "react-konva";
+import React, { Component } from "react";
 
 import "./App.css";
 import PangenomeSchematic from "./PangenomeSchematic";
-import ComponentRect, {compress_visible_rows} from "./ComponentRect";
+import ComponentRect, { compress_visible_rows } from "./ComponentRect";
 import ComponentNucleotides from "./ComponentNucleotides";
 import LinkColumn from "./LinkColumn";
 import LinkArrow from "./LinkArrow";
-import {calculateLinkCoordinates} from "./LinkRecord";
+import { calculateLinkCoordinates } from "./LinkRecord";
 import NucleotideTooltip from "./NucleotideTooltip";
 import ControlHeader from "./ControlHeader";
-import {observe} from "mobx";
-import {arraysEqual, calculateEndBinFromScreen, stringToColorAndOpacity,} from "./utilities";
+import { observe } from "mobx";
+import {
+  arraysEqual,
+  calculateEndBinFromScreen,
+  stringToColorAndOpacity,
+} from "./utilities";
 
 import makeInspectable from "mobx-devtools-mst";
 
@@ -55,11 +59,19 @@ class App extends Component {
     observe(this.props.store.chunkURLs, this.fetchAllChunks.bind(this));
 
     // observe(this.props.store, "pixelsPerRow", this.recalcY.bind(this));
-      observe(this.props.store, "useVerticalCompression", this.updateSchematicMetadata.bind(this));
-      observe(this.props.store, "useWidthCompression", this.recalcXLayout.bind(this));
-      observe(this.props.store, "useConnector", this.recalcXLayout.bind(this)); //TODO faster rerender
-      observe(this.props.store, "pixelsPerColumn", this.recalcXLayout.bind(this)); //TODO faster rerender
-      observe(this.props.store, "pixelsPerRow", this.recalcY.bind(this)); //TODO faster rerender
+    observe(
+      this.props.store,
+      "useVerticalCompression",
+      this.updateSchematicMetadata.bind(this)
+    );
+    observe(
+      this.props.store,
+      "useWidthCompression",
+      this.recalcXLayout.bind(this)
+    );
+    observe(this.props.store, "useConnector", this.recalcXLayout.bind(this)); //TODO faster rerender
+    observe(this.props.store, "pixelsPerColumn", this.recalcXLayout.bind(this)); //TODO faster rerender
+    observe(this.props.store, "pixelsPerRow", this.recalcY.bind(this)); //TODO faster rerender
 
     //STEP #8: chunksProcessed finishing triggers updateSchematicMetadata with final
     // rendering info for this loaded chunks
@@ -123,8 +135,7 @@ class App extends Component {
 
     console.log([selZoomLev, endBin, fileArray, fileArrayFasta]);
     let URLprefix =
-      process.env.PUBLIC_URL +
-      "test_data/" +
+      process.env.REACT_APP_FETCH +
       this.props.store.jsonName +
       "/" +
       selZoomLev +
@@ -201,10 +212,17 @@ class App extends Component {
     console.log("recalcXLayout");
 
     // In this way the updated relativePixelX information is available everywhere for the rendering
-      for (const [i, schematizeComponent] of this.schematic.components.entries()) {
-          schematizeComponent.relativePixelX = this.leftXStart(schematizeComponent,
-              i, 0, 0);
-      }
+    for (const [
+      i,
+      schematizeComponent,
+    ] of this.schematic.components.entries()) {
+      schematizeComponent.relativePixelX = this.leftXStart(
+        schematizeComponent,
+        i,
+        0,
+        0
+      );
+    }
 
     const sum = (accumulator, currentValue) => accumulator + currentValue;
     const columnsInComponents = this.schematic.components
