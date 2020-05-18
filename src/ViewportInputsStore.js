@@ -44,7 +44,7 @@ RootStore = types
     maximumHeightThisFrame: 150,
     cellToolTipContent: "",
     // TODO: to change 'jsonName' in 'jsonNameDir'?
-    jsonName: "small_test",
+    jsonName: "SARS-CoV-2",
     // Added attributes for the zoom level management
     availableZoomLevels: types.optional(types.array(types.string), ["1"]),
     indexSelectedZoomLevel: 0,
@@ -134,10 +134,7 @@ RootStore = types
 
     function tryJSONpath(event) {
       const url =
-        process.env.PUBLIC_URL +
-        "test_data/" +
-        event.target.value +
-        "/bin2file.json";
+        process.env.REACT_APP_FETCH + event.target.value + "/bin2file.json";
       if (urlExists(url)) {
         console.log("STEP#1: New Data Source: " + event.target.value);
         self.jsonName = event.target.value;
