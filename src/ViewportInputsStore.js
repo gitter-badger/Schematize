@@ -1,6 +1,6 @@
-import {types} from "mobx-state-tree";
-import {urlExists} from "./URL";
-import {arraysEqual} from "./utilities";
+import { types } from "mobx-state-tree";
+import { urlExists } from "./URL";
+import { arraysEqual } from "./utilities";
 
 const Chunk = types.model({
   file: types.string,
@@ -31,7 +31,7 @@ let RootStore;
 RootStore = types
   .model({
     chunkIndex: ChunkIndex,
-    beginEndBin: types.optional(types.array(types.integer), [1, 100]),
+    beginEndBin: types.optional(types.array(types.integer), [1, 60]),
     useVerticalCompression: false,
     useWidthCompression: false,
     binScalingFactor: 3,
@@ -44,7 +44,7 @@ RootStore = types
     maximumHeightThisFrame: 150,
     cellToolTipContent: "",
     // TODO: to change 'jsonName' in 'jsonNameDir'?
-    jsonName: "SARS-CoV-2",
+    jsonName: "SARS-CoV-b",
     // Added attributes for the zoom level management
     availableZoomLevels: types.optional(types.array(types.string), ["1"]),
     indexSelectedZoomLevel: 0,
