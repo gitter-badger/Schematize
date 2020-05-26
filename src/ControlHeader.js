@@ -200,23 +200,23 @@ class ControlHeader extends React.Component {
             Use Vertical Compression:
             <VerticalCompressedViewSwitch store={this.props.store} />
           </span>
-          <span>
-            {" "}
-              Show Only Rearrangements:
-            <WidthCompressedViewSwitch store={this.props.store} />
-          </span>
-          {this.props.store.useWidthCompression ? (
-            <React.Fragment>
-              <span>
-                {" "}
-                Render Connectors:
-                <RenderConnectorSwitch store={this.props.store} />
-              </span>
+            {/*<span>*/}
+            {/*  {" "}*/}
+            {/*    Show Only Rearrangements:*/}
+            {/*  <WidthCompressedViewSwitch store={this.props.store} />*/}
+            {/*</span>*/}
+            {/*{this.props.store.useWidthCompression ? (*/}
+            {/*  <React.Fragment>*/}
+            {/*    <span>*/}
+            {/*      {" "}*/}
+            {/*      Render Connectors:*/}
+            {/*      <RenderConnectorSwitch store={this.props.store} />*/}
+            {/*    </span>*/}
 
-            </React.Fragment>
-          ) : (
-            <></>
-          )}
+            {/*  </React.Fragment>*/}
+            {/*) : (*/}
+            {/*  <></>*/}
+            {/*)}*/}
           <span>
             {" "}
             Row Height:
