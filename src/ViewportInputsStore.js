@@ -38,7 +38,7 @@ RootStore = types
     useConnector: true,
     pixelsPerColumn: 10,
     pixelsPerRow: 10,
-    leftOffset: 0,
+    leftOffset: 1,
     topOffset: 400,
     highlightedLink: 0, // we will compare linkColumns
     maximumHeightThisFrame: 150,
@@ -52,31 +52,65 @@ RootStore = types
     chunkFastaURLs: types.optional(types.array(types.string), []),
     //to be compared against chunkURLs
     chunksProcessed: types.optional(types.array(types.string), []),
-    chunkBeginBin: -1,
 
     pathNucPos: types.optional(PathNucPos, { path: "path", nucPos: 0 }), // OR: types.maybe(PathNucPos)
     pathIndexServerAddress: "http://193.196.29.24:3010/",
     nucleotideHeight: 10,
     pangenomelast_bin: -1, //TODO: don't add values unless they're needed
-    // TODO: Set when bin2file is read
-    beginColumnX: 0, //TODO: copied and stored from bin2file.json in calculateEndBinFromScreen()
+
     loading: true,
+    copyNumberColorArray: types.optional(types.array(types.string), [
+      "#6a6a6a",
+      "#5f5f5f",
+      "#545454",
+      "#4a4a4a",
+      "#3f3f3f",
+      "#353535",
+      "#2a2a2a",
+      "#1f1f1f",
+      "#151515",
+      "#0a0a0a",
+      "#000000",
+    ]),
+    invertedColorArray: types.optional(types.array(types.string), [
+      "#de4b39",
+      "#c74333",
+      "#b13c2d",
+      "#9b3427",
+      "#852d22",
+      "#6f251c",
+      "#581e16",
+      "#421611",
+      "#2c0f0b",
+      "#160705",
+      "#000000",
+    ]),
   })
   .actions((self) => {
     function setChunkIndex(json) {
       console.log("STEP #2: chunkIndex contents loaded");
-      console.log("Index updated with content:", json);
+      //console.log("Index updated with content:", json);
+
+      self.chunkIndex = null; // TODO: TEMPORARY HACK before understanding more in depth mobx-state or change approach
+
       self.chunkIndex = json;
     }
     function updateBeginEndBin(newBegin, newEnd) {
       console.log("updateBeginEndBin - " + newBegin + " - " + newEnd);
 
-      /*This method needs to be atomic to avoid spurious updates and out of date validation.*/
-      newBegin = Math.max(1, Math.round(newBegin));
-      newEnd = Math.max(1, Math.round(newEnd));
       const beginBin = getBeginBin();
       const endBin = getEndBin();
-      if (newEnd === endBin) {
+
+      let diff = endBin - beginBin;
+
+      /*This method needs to be atomic to avoid spurious updates and out of date validation.*/
+
+      //TO_DO: check the end of the pangenome
+      //TO_DO: remove endBin and manage beginBin and widthBinRange (100 by default)?
+      newBegin = Math.max(1, Math.round(newBegin));
+      newEnd = Math.max(1, Math.round(newBegin + diff));
+      // the width of the range cannot change.
+      /*if (newEnd === endBin) {
         //end has not changed
         let diff = endBin - beginBin;
         newEnd = newBegin + diff; //Allows start to push End to new chunks
@@ -84,7 +118,8 @@ RootStore = types
       if (newEnd < newBegin) {
         //crush newStart
         newBegin = newEnd - 1;
-      }
+      }*/
+
       if (newBegin !== beginBin) {
         setBeginEndBin(newBegin, newEnd);
         console.log("updated begin and end: " + newBegin + " " + newEnd);
@@ -200,12 +235,6 @@ RootStore = types
       }
       self.pathNucPos = { path: path, nucPos: nucPos };
     }
-    function setBeginColumnX(x) {
-      self.beginColumnX = x;
-    }
-    function setChunkBeginBin(x) {
-      self.chunkBeginBin = x;
-    }
 
     function setLoading(val) {
       self.loading = val;
@@ -233,8 +262,7 @@ RootStore = types
       getBeginBin,
       getEndBin,
       updatePathNucPos,
-      setBeginColumnX,
-      setChunkBeginBin,
+
       //NOTE: DO NOT ADD GETTERS here.  They are not necessary in mobx.
       // You can reference store.val directly without store.getVal()
       //Only write getters to encapsulate useful logic for derived values

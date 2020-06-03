@@ -10,26 +10,40 @@ import LinkArrow from "./LinkArrow";
 import { calculateLinkCoordinates } from "./LinkRecord";
 import NucleotideTooltip from "./NucleotideTooltip";
 import ControlHeader from "./ControlHeader";
-import { observe } from "mobx";
-import {
-  arraysEqual,
-  calculateEndBinFromScreen,
-  stringToColorAndOpacity,
-} from "./utilities";
+import {observe} from "mobx";
+import {areOverlapping, arraysEqual, calculateEndBinFromScreen, stringToColorAndOpacity,} from "./utilities";
 
 import makeInspectable from "mobx-devtools-mst";
+// TO_DO: improve the management of visualzied components
+let index_to_component_to_visualize_dict;
+
+function Legend(props) {
+  return (
+    <img
+      src={process.env.PUBLIC_URL + "Schematize legend.gif"}
+      alt="legend"
+      style={{
+        position: "fixed",
+        bottom: "20px",
+        left: "20px",
+        background: "white",
+        align: "right",
+        width: "100px",
+        height: "200px",
+      }}
+    />
+  );
+}
 
 class App extends Component {
   layerRef = React.createRef();
   layerRef2 = React.createRef(null);
+  // Timer for the LinkArrow highlighting and selection (clicking on it)
   timerHighlightingLink = null;
   timerSelectionLink = null;
 
   constructor(props) {
     super(props);
-
-    this.updateHighlightedNode = this.updateHighlightedNode.bind(this);
-    this.updateSelectedLink = this.updateSelectedLink.bind(this);
 
     this.state = {
       schematize: [],
@@ -64,11 +78,9 @@ class App extends Component {
       "useVerticalCompression",
       this.updateSchematicMetadata.bind(this)
     );
-    observe(
-      this.props.store,
-      "useWidthCompression",
-      this.recalcXLayout.bind(this)
-    );
+    observe(this.props.store, "useWidthCompression", () => {
+      this.recalcXLayout();
+    });
     observe(this.props.store, "useConnector", this.recalcXLayout.bind(this)); //TODO faster rerender
     observe(this.props.store, "pixelsPerColumn", this.recalcXLayout.bind(this)); //TODO faster rerender
     observe(this.props.store, "pixelsPerRow", this.recalcY.bind(this)); //TODO faster rerender
@@ -86,7 +98,7 @@ class App extends Component {
     //STEP #3: with new chunkIndex, openRelevantChunksFromIndex
     observe(
       this.props.store,
-      "chunkIndex", //TODO: this is currently not triggering on input change. No idea why
+      "chunkIndex",
       this.openRelevantChunksFromIndex.bind(this)
     );
 
@@ -101,7 +113,38 @@ class App extends Component {
       this.openRelevantChunksFromIndex.bind(this)
     );
 
+    // For debugging purposes
     makeInspectable(this.props.store);
+  }
+
+  prepareWhichComponentsToVisualize() {
+    // It prepares a dictionary with the components to visualize. It is improvable putting all the components
+    // in a dictionary (this.schematic.components becames a dictionary).
+
+    index_to_component_to_visualize_dict = {};
+
+    for (const schematizeComponent of this.schematic.components) {
+      //console.log('PREPARE: ' + schematizeComponent.index + ': [' + schematizeComponent.firstBin + ',' + schematizeComponent.lastBin + '] - ' + schematizeComponent.arrivals.length + ' - ' + schematizeComponent.departures.length)
+      if (
+        areOverlapping(
+          this.props.store.getBeginBin(),
+          this.props.store.getEndBin(),
+          schematizeComponent.firstBin,
+          schematizeComponent.lastBin
+        )
+      ) {
+        index_to_component_to_visualize_dict[
+          schematizeComponent.index
+        ] = schematizeComponent;
+      } else if (schematizeComponent.firstBin > this.props.store.getEndBin()) {
+        // The components to visualized was already taken
+        break;
+      }
+    }
+
+    //console.log(this.schematic.components.length)
+    //console.log(this.props.store.getBeginBin() + ' - ' + this.props.store.getEndBin())
+    //console.log('index_to_component_to_visualize_dict: '  + Object.keys(index_to_component_to_visualize_dict))
   }
 
   /** Compares bin2file @param indexContents with the beginBin and EndBin.
@@ -127,13 +170,17 @@ class App extends Component {
     const selZoomLev = this.props.store.getSelectedZoomLevel();
     let [endBin, fileArray, fileArrayFasta] = calculateEndBinFromScreen(
       beginBin,
+      this.props.store.getEndBin(),
       selZoomLev,
       this.props.store
     );
+
     //TODO: commented because maybe it creates problems
     //this.props.store.updateBeginEndBin(beginBin, endBin);
 
-    console.log([selZoomLev, endBin, fileArray, fileArrayFasta]);
+    this.prepareWhichComponentsToVisualize();
+
+    //console.log([selZoomLev, endBin, fileArray, fileArrayFasta]);
     let URLprefix =
       process.env.REACT_APP_FETCH +
       this.props.store.jsonName +
@@ -149,7 +196,7 @@ class App extends Component {
 
     this.props.store.switchChunkFastaURLs(fileArrayFasta);
 
-    // If there are no new chunck, it has only to recalcualte the X layout
+    // If there are no new chunck, it has only to recalculate the X layout
     if (!this.props.store.switchChunkURLs(fileArray)) {
       this.recalcXLayout();
     }
@@ -160,14 +207,14 @@ class App extends Component {
      * Read https://github.com/graph-genome/Schematize/issues/22 for details
      */
     console.log("STEP #5: once ChunkURLs are listed, go fetchAllChunks");
-    console.log("fetchAllChunks", this.props.store.chunkURLs);
+    //console.log("fetchAllChunks", this.props.store.chunkURLs);
     if (!this.props.store.chunkURLs.get(0)) {
       console.warn("No chunk URL defined.");
       return;
     }
     for (let chunkPath of this.props.store.chunkURLs) {
       //TODO: conditional on jsonCache not already having chunk
-      console.log("fetchAllChunks - START reading: " + chunkPath);
+      //console.log("fetchAllChunks - START reading: " + chunkPath);
       this.schematic.jsonFetch(chunkPath).then((data) => {
         console.log("fetchAllChunks - END reading: " + chunkPath);
         this.schematic.loadJsonCache(chunkPath, data);
@@ -186,6 +233,8 @@ class App extends Component {
       console.log(
         "STEP #8: chunksProcessed finishing triggers updateSchematicMetadata with final rendering info for this loaded chunks"
       );
+
+      this.prepareWhichComponentsToVisualize();
 
       // console.log(this.schematic.components);
       this.setState(
@@ -224,23 +273,33 @@ class App extends Component {
       );
     }
 
-    const sum = (accumulator, currentValue) => accumulator + currentValue;
-    const columnsInComponents = this.schematic.components
-      .map(
-        (component) =>
-          component.arrivals.length +
-          (component.departures.length - 1) +
-          (this.props.store.useWidthCompression
-            ? this.props.store.binScalingFactor
-            : component.lastBin - component.firstBin) +
-          1
-      )
-      .reduce(sum, 0);
-    const paddingBetweenComponents =
-      this.props.store.pixelsPerColumn * this.schematic.components.length;
-    const actualWidth =
-      columnsInComponents * this.props.store.pixelsPerColumn +
-      paddingBetweenComponents;
+    const first_visualized_component = Object.values(
+      index_to_component_to_visualize_dict
+    )[0];
+    const last_visualized_component = Object.values(
+      index_to_component_to_visualize_dict
+    )[Object.values(index_to_component_to_visualize_dict).length - 1];
+
+    // The actualWidth is calculated on the visualized components
+    const columnsInComponents =
+      last_visualized_component.getColumnX(
+        this.props.store.useWidthCompression
+      ) -
+      first_visualized_component.getColumnX(
+        this.props.store.useWidthCompression
+      ) +
+      last_visualized_component.arrivals.length +
+      last_visualized_component.departures.length +
+      (this.props.store.useWidthCompression
+        ? this.props.store.binScalingFactor
+        : last_visualized_component.num_bin) -
+      this._column_shift(first_visualized_component);
+
+    //TO_DO: to remove?
+    /*const paddingBetweenComponents =
+      this.props.store.pixelsPerColumn * this.schematic.components.length;*/
+    const actualWidth = columnsInComponents * this.props.store.pixelsPerColumn;
+    //+ paddingBetweenComponents;
     this.setState({
       actualWidth: actualWidth,
     });
@@ -250,7 +309,8 @@ class App extends Component {
       this.props.store.topOffset,
       this.props.store.useWidthCompression,
       this.props.store.binScalingFactor,
-      this.leftXStart.bind(this)
+      this.leftXStart.bind(this),
+      index_to_component_to_visualize_dict
     );
     this.distanceSortedLinks = links;
     this.props.store.updateTopOffset(parseInt(top));
@@ -262,10 +322,10 @@ class App extends Component {
   }
 
   calcMaxNumRowsAcrossComponents(components) {
-      let lengths = components.map((x) => {
-          return x.occupants.length;
-      })
-      return Math.max(...lengths); //this should likely be faster than doing a search for true values
+    let lengths = components.map((x) => {
+      return x.occupants.length;
+    });
+    return Math.max(...lengths); //this should likely be faster than doing a search for true values
   }
 
   visibleHeightPixels() {
@@ -279,10 +339,10 @@ class App extends Component {
           this.schematic.components
         );
       }
-      console.log(
+      /*console.log(
         "maxNumRowsAcrossComponents",
         this.maxNumRowsAcrossComponents
-      );
+      );*/
 
       return (
         (this.maxNumRowsAcrossComponents + 2.5) * this.props.store.pixelsPerRow
@@ -297,7 +357,7 @@ class App extends Component {
   }
 
   componentDidMount = () => {
-    let buttonContainerDiv = document.getElementById("button-container");
+    /*let buttonContainerDiv = document.getElementById("button-container");
     let clientHeight = buttonContainerDiv.clientHeight;
 
     const arrowsDiv = document.getElementsByClassName("konvajs-content")[0];
@@ -309,7 +369,7 @@ class App extends Component {
     this.layerRef.current.getCanvas()._canvas.position = "relative";
 
     this.layerRef2.current.getCanvas()._canvas.id = "arrow";
-    this.layerRef2.current.getCanvas()._canvas.position = "relative";
+    this.layerRef2.current.getCanvas()._canvas.position = "relative";*/
     //this.layerRef2.current.getCanvas()._canvas.style.top = "95px";
     /*if(this.props.store.useVerticalCompression) {
       this.props.store.resetRenderStats(); //FIXME: should not require two renders to get the correct number
@@ -319,7 +379,6 @@ class App extends Component {
   // Now it is wrapped in the updateHighlightedNode() function
   _updateHighlightedNode = (linkRect) => {
     this.setState({ highlightedLink: linkRect });
-    this.recalcXLayout();
   };
 
   // Wrapper function to wrap the logic (no link selected and time delay)
@@ -360,19 +419,46 @@ class App extends Component {
     }
   };
 
-  updateSelectedLink = (linkRect, newBeginBin, newEndBin) => {
+  updateSelectedLink = (linkRect) => {
     console.log("updateSelectedLink");
 
-    const [beginBin, endBin] = this.props.store.beginEndBin;
-
-    // if (linkRect !== this.state.selectedLink) //else it is a re-clik on the same link, so do nothing here
-    // TODO: simplify this part, avoiding operations if the arrow is already visibile in the screen
     let update_state = false;
-    if (!(beginBin <= newBeginBin && newEndBin <= endBin)) {
-      console.log("updateSelectedLink - NewBeginEndBin");
 
-      this.props.store.updateBeginEndBin(newBeginBin, newEndBin);
-      update_state = true;
+    if (linkRect) {
+      //TO_DO: lift down this logic when it will be visualized partial chunks (or
+      // pass info about the visualized chunks to the LinkArrow tags)
+      const [bin1, bin2] = [linkRect.upstream, linkRect.downstream].sort(
+        function (a, b) {
+          return a - b;
+        }
+      );
+
+      /*console.log([linkRect.upstream, linkRect.downstream])
+      console.log(bin1, bin2)*/
+
+      const last_bin_last_visualized_component = Object.values(
+        index_to_component_to_visualize_dict
+      ).slice(-1)[0].lastBin;
+      // if (linkRect !== this.state.selectedLink) //else it is a re-clik on the same link, so do nothing here
+
+      const [beginBin, endBin] = this.props.store.beginEndBin;
+      if (bin1 < beginBin || bin2 > last_bin_last_visualized_component) {
+        console.log("updateSelectedLink - NewBeginEndBin");
+
+          const end_closer = Math.abs(beginBin - bin1) > Math.abs(endBin - bin2);
+
+        let [newBeginBin, newEndBin] = this.props.store.beginEndBin;
+          let screenWidth = endBin - beginBin;
+          let half = Math.floor(screenWidth / 2);
+          if (end_closer) {
+              [newBeginBin, newEndBin] = [bin1 - half, bin1 + half];
+        } else {
+              [newBeginBin, newEndBin] = [bin2 - half, bin2 + half];
+        }
+
+        this.props.store.updateBeginEndBin(newBeginBin, newEndBin);
+        update_state = true;
+      }
     }
 
     clearTimeout(this.timerHighlightingLink);
@@ -397,41 +483,51 @@ class App extends Component {
 
       this.timerSelectionLink = setTimeout(
         () => {
-          const [beginBin, endBin] = this.props.store.beginEndBin;
-          this.updateSelectedLink(null, beginBin, endBin);
+          this.updateSelectedLink(null);
         },
         5000 // TODO: to tune. Create a config file where all these hard-coded settings will be
       );
     }
   };
 
+  // Specific utility function to calculate the visualization shift for the first partial visualized component
+  _column_shift(first_visualized_component) {
+    return !this.props.store.useWidthCompression
+      ? first_visualized_component.firstBin === this.props.store.getBeginBin()
+        ? 0
+        : first_visualized_component.arrivals.length +
+          (this.props.store.getBeginBin() - first_visualized_component.firstBin)
+      : 0; // When only rearrangements are shown, the width does not correspond to the number of bin, so for now we avoid any shifting
+  }
+
   leftXStart(schematizeComponent, i, firstDepartureColumn, j) {
+    // Avoid calling the function too early or for not visualized components
+    if (!(schematizeComponent.index in index_to_component_to_visualize_dict)) {
+      return;
+    }
+
+    //Return the x coordinate pixel that starts the LinkColumn at i, j
+
+    const first_visualized_component = Object.values(
+      index_to_component_to_visualize_dict
+    )[0];
+
     /*
-    Return the x coordinate pixel that starts the LinkColumn at i, j
-    
-    If this.props.store.useWidthCompression is false:
-    - "schematizeComponent.columnX - this.props.store.beginColumnX" calculates the offset of the current chunk respect to the first chunk loaded
-    - "this.props.store.getBeginBin() - this.props.store.chunkBeginBin":" calculates the offset of the current visualized window respect to the starting bin coordinate
+    - "schematizeComponent.getColumnX(...) - first_visualized_component.getColumnX(..)": offset of the current component respect to the first visualized one
+    - "this._column_shift(first_visualized_component)"": to hide the arrow on the left
+    - "(schematizeComponent.index - this.schematic.components[0].index": number of padding white columns
     */
+    const previousColumns =
+      schematizeComponent.getColumnX(this.props.store.useWidthCompression) -
+      first_visualized_component.getColumnX(
+        this.props.store.useWidthCompression
+      ) -
+      this._column_shift(first_visualized_component) -
+      (schematizeComponent.index - this.schematic.components[0].index);
 
-    let previousColumns = !this.props.store.useWidthCompression
-      ? schematizeComponent.columnX -
-        this.props.store.beginColumnX -
-        (this.props.store.getBeginBin() - this.props.store.chunkBeginBin - 1)
-      : schematizeComponent.columnX +
-        (schematizeComponent.index - this.schematic.components[0].index) *
-          this.props.store.binScalingFactor;
-
-    let pixelsFromColumns =
+    const pixelsFromColumns =
       (previousColumns + firstDepartureColumn + j) *
       this.props.store.pixelsPerColumn;
-
-    /*console.log(i, firstDepartureColumn, j)
-    console.log('previousColumns (' + previousColumns + ') = columnX (
-    ' + schematizeComponent.columnX + ') - beginColumnX (' + this.props.store.beginColumnX + ')
-     - (getBeginBin (' + this.props.store.getBeginBin() + ') -
-     chunkBeginBin (' + this.props.store.chunkBeginBin + ') - 1)')
-    console.log('pixelsFromColumns: ' + pixelsFromColumns)*/
 
     return pixelsFromColumns + i * this.props.store.pixelsPerColumn;
   }
@@ -470,6 +566,7 @@ class App extends Component {
             (this.props.store.useWidthCompression
               ? this.props.store.binScalingFactor
               : schematizeComponent.num_bin);
+
           return this.renderLinkColumn(
             schematizeComponent,
             i,
@@ -541,7 +638,7 @@ class App extends Component {
   renderNucleotidesSchematic = () => {
     if (
       !this.props.store.loading &&
-      // The conditions on bitWidht and useWidthCompression are lifted here,
+      // The conditions on binWidht and useWidthCompression are lifted here,
       // avoiding any computation if nucleotides have not to be visualized.
       this.props.store.getBinWidth() === 1 &&
       !this.props.store.useWidthCompression &&
@@ -549,55 +646,35 @@ class App extends Component {
       this.schematic.nucleotides.length > 0
     ) {
       //console.log('renderNucleotidesSchematic - START')
-      return this.schematic.components.map((schematizeComponent, i) => {
-        //TODO: maybe it is not necessary, to confirm its elimination
-        // Check if there are nucleotides (which cover the range [this.schematic.first_bin, this.schematic.last_bin])
-        // associated to the component to visualize (which cover the range [schematizeComponent.firstBin, schematizeComponent.lastBin])
-        /*if (
-          !(
-            this.schematic.first_bin <= schematizeComponent.firstBin &&
-            schematizeComponent.firstBin <= schematizeComponent.lastBin &&
-            schematizeComponent.lastBin <= this.schematic.last_bin
-          )
-        ) {
-          return null;
-        }*/
+      return Object.values(index_to_component_to_visualize_dict).map(
+        (schematizeComponent, i) => {
+          // The dummy component (firstBin and lastBin equal to 0) is not loaded in this.schematic.components, but there is a nucleotide for it in the FASTA file.
+          // If the first component has firstBin == 1, then in the FASTA there is a nucleotide not visualized, so the shift start from 0, and not 1
+          const nt_shift =
+            this.schematic.components[0].firstBin === 1
+              ? 0
+              : this.schematic.components[0].firstBin;
 
-        /*if (
-          schematizeComponent.firstBin === schematizeComponent.lastBin &&
-          schematizeComponent.firstBin === 0
-        ) {
-          return null; // Dummy component
-        }*/
+          const nucleotides_slice = this.schematic.nucleotides.slice(
+            schematizeComponent.firstBin - nt_shift,
+            schematizeComponent.lastBin - nt_shift + 1
+          );
 
-        //TODO: question if this.props.store.chunkBeginBin is necessary
-        const nucleotides_slice = this.schematic.nucleotides.slice(
-          schematizeComponent.firstBin - this.props.store.chunkBeginBin,
-          schematizeComponent.lastBin - this.props.store.chunkBeginBin + 1
-        );
+          //console.log("nucleotides_slice: " + nucleotides_slice);
 
-        //console.log("nucleotides_slice: " + nucleotides_slice);
-
-        return (
-          <React.Fragment key={"nt" + i}>
-            <ComponentNucleotides
-              store={this.props.store}
-              item={schematizeComponent}
-              key={i}
-              height={this.visibleHeightPixels()}
-              width={
-                schematizeComponent.arrivals.length +
-                (this.props.store.useWidthCompression
-                  ? this.props.store.binScalingFactor
-                  : schematizeComponent.num_bin) +
-                (schematizeComponent.departures.length - 1)
-              }
-              // They are passed only the nucleotides associated to the current component
-              nucleotides={nucleotides_slice}
-            />
-          </React.Fragment>
-        );
-      });
+          return (
+            <React.Fragment key={"nt" + i}>
+              <ComponentNucleotides
+                store={this.props.store}
+                item={schematizeComponent}
+                key={i}
+                // They are passed only the nucleotides associated to the current component
+                nucleotides={nucleotides_slice}
+              />
+            </React.Fragment>
+          );
+        }
+      );
     }
   };
 
@@ -609,11 +686,15 @@ class App extends Component {
     }
 
     return this.schematic.components.map((schematizeComponent, i) => {
-      return (
-        <React.Fragment key={"f" + i}>
-          {this.renderComponent(schematizeComponent, i, this.state.pathNames)}
-        </React.Fragment>
-      );
+      if (schematizeComponent.index in index_to_component_to_visualize_dict) {
+        return (
+          <React.Fragment key={"f" + i}>
+            {this.renderComponent(schematizeComponent, i, this.state.pathNames)}
+          </React.Fragment>
+        );
+      } else {
+        return null;
+      }
     });
   }
 
@@ -631,6 +712,7 @@ class App extends Component {
     if (this.props.store.loading) {
       return (
         <Text
+          key="loading"
           y={100}
           fontSize={60}
           width={300}
@@ -644,6 +726,8 @@ class App extends Component {
   render() {
     console.log("Start render");
 
+    //console.log('renderNucleotidesSchematic - START')
+
     return (
       <>
         <div
@@ -655,7 +739,7 @@ class App extends Component {
 
             // To keep the matrix under the container with the vertical scrolling
             // when the matrix is larger than the page
-            width: this.state.actualWidth + 60,
+            width: this.state.actualWidth,
 
             // To avoid width too low with large bin_width
             minWidth: "100%",
@@ -666,7 +750,7 @@ class App extends Component {
           <Stage
             x={this.props.store.leftOffset}
             y={this.props.topOffset}
-            width={this.state.actualWidth + 60}
+            width={this.state.actualWidth}
             height={this.props.store.topOffset}
           >
             <Layer ref={this.layerRef2}>
@@ -679,7 +763,7 @@ class App extends Component {
         <Stage
           x={this.props.store.leftOffset} // removed leftOffset to simplify code. Relative coordinates are always better.
           y={-this.props.store.topOffset} // For some reason, I have to put this, but I'd like to put 0
-          width={this.state.actualWidth + 60}
+          width={this.state.actualWidth}
           height={
             this.visibleHeightPixels() + this.props.store.nucleotideHeight
           }
@@ -691,6 +775,7 @@ class App extends Component {
         </Stage>
 
         <NucleotideTooltip store={this.props.store} />
+        <Legend store={this.props.store} />
       </>
     );
   }

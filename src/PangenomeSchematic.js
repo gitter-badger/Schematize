@@ -66,12 +66,12 @@ class PangenomeSchematic extends React.Component {
   loadJsonCache(url, data) {
     console.log("STEP #6: fetched chunks go into loadJsonCache");
 
-      if (data.json_version !== 15) {
+      if (data.json_version !== 16) {
       throw MediaError(
-          "Wrong Data JSON version: was expecting version 15, got " +
-        data.json_version +
-        ".  " +
-          "This version switched to sparse JSON.  " + // KEEP THIS UP TO DATE!
+          "Wrong Data JSON version: was expecting version 16, got " +
+          data.json_version +
+          ".  " +
+          "This version added compressedX.  " + // KEEP THIS UP TO DATE!
           "Using a mismatched data file and renderer will cause unpredictable behavior," +
           " instead generate a new data file using github.com/graph-genome/component_segmentation."
       );
@@ -90,7 +90,7 @@ class PangenomeSchematic extends React.Component {
     // This loop will automatically cap out at the fasta file corrisponding to the last loaded chunk
     for (let path_fasta of this.props.store.chunkFastaURLs) {
       if (urlExists(path_fasta)) {
-        console.log("loadFasta - START: ", path_fasta);
+        //console.log("loadFasta - START: ", path_fasta);
 
         fetch(path_fasta)
           .then((response) => {
@@ -141,22 +141,19 @@ class PangenomeSchematic extends React.Component {
           let url = store.chunkURLs[urlIndex];
           let jsonChunk = this.jsonCache[url];
 
-          console.log(
+          /*console.log(
             "processArray - jsonChunk.components[0].x: " +
               jsonChunk.components[0].x
-          );
-          if (urlIndex === 0) {
-            // first component in the render
-            store.setBeginColumnX(jsonChunk.components[0].x);
-            console.log(
-              "processArray - jsonChunk.first_bin: " + jsonChunk.first_bin
-            );
-            store.setChunkBeginBin(jsonChunk.first_bin);
-          }
+          );*/
 
+          const num_components_already_loaded =
+            this.components.length > 0 ? this.components.length + 1 : 0;
           for (let [index, component] of jsonChunk.components.entries()) {
             if (component.first_bin > 0) {
-              let componentItem = new Component(component, index);
+              let componentItem = new Component(
+                component,
+                num_components_already_loaded + index
+              );
               this.components.push(componentItem); //TODO: concurrent modification?
               //if (component.last_bin >= beginBin) { NOTE: we are now reading in whole chunk, this may place
               //xOffset further right than it was intended when beginBin > chunk.first_bin
@@ -188,9 +185,12 @@ class Component {
   //extends React.Component{
   constructor(component, index) {
     this.columnX = component.x;
+    this.compressedColumnX = component.compressedX;
+
     this.index = index;
     this.firstBin = component.first_bin;
     this.lastBin = component.last_bin;
+
     this.arrivals = [];
     for (let arrival of component.arrivals) {
       this.arrivals.push(new LinkColumn(arrival));
@@ -200,12 +200,17 @@ class Component {
       //don't slice off adjacent here
       this.departures.push(new LinkColumn(departure));
     }
-    // we do not know the x val for this component, yet
-    this.relativePixelX = component.x;
+
+    this.relativePixelX = -1;
+
     // deep copy of occupants
-      this.occupants = component.occupants; //Array.from(
-      this.matrix = component.matrix; // Array.from(
+    this.occupants = component.occupants; //Array.from(
+    this.matrix = component.matrix; // Array.from(
     this.num_bin = this.lastBin - this.firstBin + 1;
+  }
+
+  getColumnX(useWidthCompression) {
+    return useWidthCompression ? this.compressedColumnX : this.columnX;
   }
 }
 
