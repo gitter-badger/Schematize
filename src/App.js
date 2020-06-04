@@ -25,7 +25,7 @@ let index_to_component_to_visualize_dict;
 function Legend(props) {
   return (
     <img
-      src={process.env.PUBLIC_URL + "Schematize legend.gif"}
+      src={process.env.PUBLIC_URL + "/" + "Schematize legend.gif"}
       alt="legend"
       style={{
         position: "fixed",
@@ -119,7 +119,7 @@ class App extends Component {
     );
 
     // For debugging purposes
-      //makeInspectable(this.props.store);
+    //makeInspectable(this.props.store);
   }
 
   prepareWhichComponentsToVisualize() {
@@ -137,7 +137,7 @@ class App extends Component {
           schematizeComponent.lastBin
         )
       ) {
-          //console.log('PREPARE: ' + schematizeComponent.index + ': [' + schematizeComponent.firstBin + ',' + schematizeComponent.lastBin + '] - ' + schematizeComponent.arrivals.length + ' - ' + schematizeComponent.departures.length)
+        //console.log('PREPARE: ' + schematizeComponent.index + ': [' + schematizeComponent.firstBin + ',' + schematizeComponent.lastBin + '] - ' + schematizeComponent.arrivals.length + ' - ' + schematizeComponent.departures.length)
 
         index_to_component_to_visualize_dict[
           schematizeComponent.index
@@ -200,19 +200,19 @@ class App extends Component {
     if (!bin_range_changed) {
       this.prepareWhichComponentsToVisualize();
 
-    //console.log([selZoomLev, endBin, fileArray, fileArrayFasta]);
-    let URLprefix =
-      process.env.REACT_APP_FETCH +
-      this.props.store.jsonName +
-      "/" +
-      selZoomLev +
-      "/";
-    fileArray = fileArray.map((filename) => {
-      return URLprefix + filename;
-    });
-    fileArrayFasta = fileArrayFasta.map((filename) => {
-      return URLprefix + filename;
-    });
+      //console.log([selZoomLev, endBin, fileArray, fileArrayFasta]);
+      let URLprefix =
+        process.env.REACT_APP_FETCH +
+        this.props.store.jsonName +
+        "/" +
+        selZoomLev +
+        "/";
+      fileArray = fileArray.map((filename) => {
+        return URLprefix + filename;
+      });
+      fileArrayFasta = fileArrayFasta.map((filename) => {
+        return URLprefix + filename;
+      });
 
       this.props.store.switchChunkFastaURLs(fileArrayFasta);
 
@@ -675,8 +675,8 @@ class App extends Component {
           const nt_shift = this.schematic.components[0].firstBin || 1;
 
           const nucleotides_slice = this.schematic.nucleotides.slice(
-              schematizeComponent.firstBin - nt_shift, // firstBin is 1 indexed, but this is canceled by nt_shift
-              schematizeComponent.lastBin - nt_shift + 1 // inclusive end
+            schematizeComponent.firstBin - nt_shift, // firstBin is 1 indexed, but this is canceled by nt_shift
+            schematizeComponent.lastBin - nt_shift + 1 // inclusive end
           );
 
           //console.log("nucleotides_slice: " + nucleotides_slice);
