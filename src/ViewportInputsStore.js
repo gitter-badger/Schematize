@@ -38,7 +38,7 @@ RootStore = types
     binScalingFactor: 3,
     useConnector: true,
     pixelsPerColumn: 10,
-    pixelsPerRow: 10,
+    pixelsPerRow: 3,
     leftOffset: 1,
     topOffset: 400,
     highlightedLink: 0, // we will compare linkColumns
@@ -158,10 +158,10 @@ RootStore = types
       self.useConnector = !self.useConnector;
     }
     function updateHeight(event) {
-        self.pixelsPerRow = Math.max(1, Number(event.target.value));
+      self.pixelsPerRow = Math.max(1, Number(event.target.value));
     }
     function updateWidth(event) {
-        self.pixelsPerColumn = Math.max(3, Number(event.target.value));
+      self.pixelsPerColumn = Math.max(3, Number(event.target.value));
     }
 
     function tryJSONpath(event) {
